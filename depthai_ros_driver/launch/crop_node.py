@@ -21,6 +21,11 @@ class CroppedVideoPublisher(Node):
         self.camRgb.setInterleaved(False)
         self.camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
         self.camRgb.setFps(30)
+        crop_width = 640  # default crop width
+        crop_height = 800  # default crop height
+        crop_x = 100  # top-left x
+        crop_y = 50   # top-left y
+        self.camRgb.setVideoSize(crop_width, crop_height)
         # self.camRgb.setIspScale(1, 1)
 
         # Create XLinkOut for video stream
@@ -45,21 +50,15 @@ class CroppedVideoPublisher(Node):
         # Get native ISP and video sizes
         isp_width = self.camRgb.getIspWidth()
         isp_height = self.camRgb.getIspHeight()
-        video_width = 640  # default crop width
-        video_height = 360  # default crop height
-        self.image_manip_cfg.setCropRect(0, 0, video_width, video_height)
+        # Specify top-left corner for crop (in pixels)
+        # Calculate normalized crop rectangle for top-left crop
+        xMin = crop_x / isp_width
+        yMin = crop_y / isp_height
+        xMax = (crop_x + crop_width) / isp_width
+        yMax = (crop_y + crop_height) / isp_height
+        self.image_manip_cfg.setCropRect(xMin, yMin, xMax, yMax)
         self.config_queue.send(self.image_manip_cfg)
-        maxCropX = (isp_width - video_width) / isp_width
-        maxCropY = (isp_height - video_height) / isp_height
-        print(f"maxCropX: {maxCropX}, maxCropY: {maxCropY}, ISP: {isp_width}x{isp_height}, Video: {video_width}x{video_height}")
-
-        # Check if requested crop size is valid
-        if video_width > isp_width or video_height > isp_height:
-            print(f"Warning: Requested crop size {video_width}x{video_height} exceeds native ISP resolution {isp_width}x{isp_height}. Adjusting to max possible.")
-            video_width = min(video_width, isp_width)
-            video_height = min(video_height, isp_height)
-            self.camRgb.setVideoSize(video_width, video_height)
-
+        print(f"Native Resolution: {isp_width}x{isp_height}, Cropped Video: {crop_width}x{crop_height}, Crop top-left: ({crop_x},{crop_y})")
         # Timer to periodically process frames
         self.create_timer(1/30.0, self.timer_callback)
 
