@@ -15,9 +15,9 @@ class CroppedVideoPublisher(Node):
         # self.resolution = self.get_parameter('resolution').get_parameter_value().integer_value
         # DepthAI pipeline setup (from cam_test.py, only video stream)
         self.compressed = False  # Set to True for compressed output, False for raw
-        self.resolution = '4K'
+        self.resolution = '1080p'
         self.framerate = 15
-        self.auto_config = False
+        self.auto_config = True
         self.pipeline = dai.Pipeline()
         self.image_manip_cfg = dai.ImageManipConfig()
         self.camRgb = self.pipeline.create(dai.node.ColorCamera)
@@ -33,8 +33,8 @@ class CroppedVideoPublisher(Node):
         self.camRgb.setInterleaved(False)
         self.camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
         self.camRgb.setFps(self.framerate)
-        crop_width = 640  # default crop width multiple of 32
-        crop_height = 800  # default crop height multiple of 32
+        crop_width = 800  # default crop width multiple of 32
+        crop_height = 1000  # default crop height multiple of 32
         crop_tl_x = 100  # top-left x
         crop_tl_y = 50   # top-left y
         self.camRgb.setVideoSize(crop_width, crop_height)
@@ -84,11 +84,14 @@ class CroppedVideoPublisher(Node):
         self.config_queue.send(self.image_manip_cfg)
         ctrl = dai.CameraControl()
         if not self.auto_config:
-            ctrl_manual_exposure_time = 10000   # [1, 33000]
-            ctrl_sens_iso = 800                 # [100, 1600]
-            ctrl_manual_white_balance = 8000    # [1000, 12000]
+            ctrl_manual_exposure_time = 1000   # [1, 33000]
+            ctrl_sens_iso = 100                 # [100, 1600]
+            ctrl_manual_white_balance = 6600    # [1000, 12000]
             ctrl_manual_focus = 120             # [0, 255]
-            ctrl.setManualFocus(ctrl_manual_focus)
+            # ctrl.setManualFocus(ctrl_manual_focus)
+            ctrl.setAutoFocusTrigger()
+            ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.CONTINUOUS_PICTURE)
+            ctrl.setAutoFocusRegion(crop_tl_x, crop_tl_y, crop_width, crop_height)  # Set focus region to the crop area
             ctrl.setManualExposure(ctrl_manual_exposure_time, ctrl_sens_iso)
             ctrl.setManualWhiteBalance(ctrl_manual_white_balance)
             self.control_queue.send(ctrl)
@@ -97,8 +100,8 @@ class CroppedVideoPublisher(Node):
             ctrl.setAutoExposureEnable()
             ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
             ctrl.setAutoFocusTrigger()
-            ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.CONTINUOUS_VIDEO)
-            ctrl.setAutoFocusRegion(xMin, yMin, xMax, yMax)  # Set focus region to the crop area
+            ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.CONTINUOUS_PICTURE)
+            ctrl.setAutoFocusRegion(crop_tl_x, crop_tl_y, crop_width, crop_height)  # Set focus region to the crop area
             self.control_queue.send(ctrl)
 
         print(f"Native Resolution: {isp_width}x{isp_height}, Cropped Video: {crop_width}x{crop_height}, Crop top-left: ({crop_tl_x},{crop_tl_y})")
